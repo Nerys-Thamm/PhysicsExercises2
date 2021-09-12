@@ -3,5 +3,10 @@
   "directory": "/home/neryst/Documents/Repos/PhysicsExercises2/build",
   "command": "/usr/bin/c++ -g -o CMakeFiles/PhysicsExercises2.dir/main.cpp.o -c /home/neryst/Documents/Repos/PhysicsExercises2/main.cpp",
   "file": "/home/neryst/Documents/Repos/PhysicsExercises2/main.cpp"
+},
+{
+  "directory": "/home/neryst/Documents/Repos/PhysicsExercises2/build",
+  "command": "/usr/bin/c++ -g -o CMakeFiles/PhysicsExercises2.dir/CVector.cpp.o -c /home/neryst/Documents/Repos/PhysicsExercises2/CVector.cpp",
+  "file": "/home/neryst/Documents/Repos/PhysicsExercises2/CVector.cpp"
 }
 ]
