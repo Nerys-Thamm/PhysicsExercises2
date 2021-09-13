@@ -7,6 +7,7 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Network.hpp>
 #include <SFML/Audio.hpp>
+#include <cstdarg>
 
 sf::VertexArray MakeTriangle(sf::Vector2f PointA, sf::Vector2f PointB, sf::Vector2f PointC, sf::Color Color)
 {
@@ -26,10 +27,20 @@ sf::VertexArray MakeTriangle(sf::Vector2f PointA, sf::Vector2f PointB, sf::Vecto
     return triangle;
 }
 
+sf::VertexArray MakePolygon(std::vector<sf::Vector2i> _vertices)
+{
+    sf::VertexArray poly(sf::TrianglesFan, _vertices.size());
+    for (int i = 0; i < _vertices.size(); i++)
+    {
+        poly[i].position = (sf::Vector2f)_vertices[i];
+    }
+    return poly;
+}
+
 void PointInTriangle()
 {
     //window
-    sf::RenderWindow window(sf::VideoMode(300, 300), "Nerys Thamm Triangle Cutter", sf::Style::Titlebar);
+    sf::RenderWindow window(sf::VideoMode(300, 300), "Nerys Thamm point in triangle tester", sf::Style::Titlebar);
     window.setFramerateLimit(60);
 
     std::vector<sf::VertexArray> Triangles; //Vector of all triangles
@@ -142,7 +153,7 @@ void PointInTriangle()
 void PointInTriangleBarycentric()
 {
     //window
-    sf::RenderWindow window(sf::VideoMode(300, 300), "Nerys Thamm Triangle Cutter", sf::Style::Titlebar);
+    sf::RenderWindow window(sf::VideoMode(300, 300), "Nerys Thamm Barycentric Point in triangle tester", sf::Style::Titlebar);
     window.setFramerateLimit(60);
 
     std::vector<sf::VertexArray> Triangles; //Vector of all triangles
@@ -240,6 +251,159 @@ void PointInTriangleBarycentric()
     return;
 }
 
+std::vector<CVector::Vector3> GetAxes(sf::VertexArray _vertices)
+{
+    std::vector<CVector::Vector3> out;
+    for (int i = 0; i < _vertices.getVertexCount(); i++)
+    {
+        out.push_back(CVector::ToVector3(_vertices[i].position - _vertices[i + 1 == _vertices.getVertexCount() ? 0 : i + 1].position));
+    }
+
+    for (auto edge : out)
+    {
+        edge = CVector::Vector3{edge.y, -edge.x, 0.0f};
+    }
+    return out;
+}
+
+typedef std::tuple<float, float> Projection;
+
+Projection ProjectOnAxis(const sf::VertexArray &_vertices, const CVector::Vector3 &_axis)
+{
+    float min = std::numeric_limits<float>::infinity();
+    float max = -std::numeric_limits<float>::infinity();
+    for (int i = 0; i < _vertices.getVertexCount(); i++)
+    {
+        float proj = CVector::Dot(CVector::ToVector3(_vertices[i].position), _axis);
+        if (proj < min)
+            min = proj;
+        if (proj > max)
+            max = proj;
+    }
+    return Projection(min, max);
+}
+
+bool IsOverlapping(sf::VertexArray _a, sf::VertexArray _b)
+{
+    std::vector<CVector::Vector3> axesA = GetAxes(_a);
+    std::vector<CVector::Vector3> axesB = GetAxes(_b);
+    auto overlap = [](Projection a, Projection b) -> bool
+    { return std::get<0>(a) <= std::get<1>(b) && std::get<1>(a) >= std::get<0>(b); };
+
+    for (auto axis : axesA)
+    {
+        if (!overlap(ProjectOnAxis(_a, axis), ProjectOnAxis(_b, axis)))
+            return false;
+    }
+    for (auto axis : axesB)
+    {
+        if (!overlap(ProjectOnAxis(_a, axis), ProjectOnAxis(_b, axis)))
+            return false;
+    }
+    return true;
+}
+
+void SeperatingAxisTheorem()
+{
+    //window
+    sf::RenderWindow window(sf::VideoMode(300, 300), "Nerys Thamm Triangle Cutter", sf::Style::Titlebar);
+    window.setFramerateLimit(60);
+
+    std::vector<sf::VertexArray> Polygons; //Vector of all triangles
+
+    std::vector<sf::Vector2i> ClickBuffer; //Buffer of click input positions
+
+    bool overlap = false;
+
+    //program loop
+    while (window.isOpen())
+    {
+
+        window.clear();
+
+        sf::Event event;
+        while (window.pollEvent(event))
+        {
+            if (event.type == sf::Event::Closed)
+                window.close();
+            switch (event.type)
+            {
+            case sf::Event::MouseButtonPressed:
+                ClickBuffer.push_back(sf::Mouse::getPosition(window)); //Add clicks to buffer
+                if (Polygons.size() >= 2)
+                    ClickBuffer.clear();
+                break;
+            case sf::Event::KeyPressed:
+
+                switch (event.key.code)
+                {
+                case sf::Keyboard::R:
+                    Polygons.clear();
+                    overlap = false;
+                    ClickBuffer.clear();
+                    break;
+                case sf::Keyboard::P:
+                    if (ClickBuffer.size() > 2)
+                    {
+                        Polygons.push_back(MakePolygon(ClickBuffer));
+                        if (Polygons.size() == 2)
+                        {
+                            overlap = IsOverlapping(Polygons[0], Polygons[1]);
+                        }
+                        ClickBuffer.clear();
+                    }
+                    break;
+                default:
+                    window.close();
+                    break;
+                }
+            default:
+                break;
+            }
+        }
+        //RENDER
+        window.clear();
+        sf::Color colorlist[] = {sf::Color::Blue,
+                                 sf::Color::Green};
+
+        for (int i = 0; i < Polygons.size(); i++)
+        {
+            for (int j = 0; j < Polygons[i].getVertexCount(); j++)
+            {
+                Polygons[i][j].color = (overlap ? sf::Color::Red : colorlist[i]);
+            }
+
+            window.draw(Polygons[i]);
+        }
+        sf::Vertex line[ClickBuffer.size() + 1];
+        for (int i = 0; i < ClickBuffer.size(); i++)
+        {
+            line[i].position = (sf::Vector2f)ClickBuffer[i];
+        }
+        line[ClickBuffer.size()].position = (sf::Vector2f)sf::Mouse::getPosition(window);
+        window.draw(line, ClickBuffer.size(), sf::LineStrip);
+
+        // if (ClickBuffer.size() == 1 && Polygons.size() == 0)
+        // {
+        //     line[0].position = (sf::Vector2f)ClickBuffer[0];
+        //     line[1].position = (sf::Vector2f)sf::Mouse::getPosition(window);
+        //     line[2].position = (sf::Vector2f)sf::Mouse::getPosition(window);
+        //     window.draw(line, 2, sf::Lines);
+        // }
+        // else if (ClickBuffer.size() >= 2)
+        // {
+        //     line[0].position = (sf::Vector2f)ClickBuffer[0];
+        //     line[1].position = (sf::Vector2f)ClickBuffer[1];
+        //     line[2].position = (sf::Vector2f)sf::Mouse::getPosition(window);
+        //     window.draw(line, 3, sf::LineStrip);
+        // }
+
+        window.display();
+    }
+
+    return;
+}
+
 void Javelin(float _angle, float _speed, float _time, CVector::Vector3 &out_Pos, float &out_Angle)
 {
     const float GRAVITY = 9.80665f;
@@ -283,6 +447,10 @@ int main()
         else if (input == "004.2")
         {
             PointInTriangleBarycentric();
+        }
+        else if (input == "004.3")
+        {
+            SeperatingAxisTheorem();
         }
         else if (input == "005.2")
         {
