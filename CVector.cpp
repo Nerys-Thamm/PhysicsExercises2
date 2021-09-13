@@ -65,5 +65,5 @@ bool CVector::TestPointInTriBarycentric(Vector3 _point, Vector3 _triA, Vector3 _
 	float PBC = CVector::Dot(CVector::Vector3{0, 0, 1}, CVector::CrossProduct((_triB - _point), (_triC - _point)));
 	float PCA = CVector::Dot(CVector::Vector3{0, 0, 1}, CVector::CrossProduct((_triC - _point), (_triA - _point)));
 	CVector::Vector3 bary{PBC / ABC, PCA / ABC, 1.0f - (PBC / ABC) - (PCA / ABC)};
-	return (bary.y >= 0 && bary.y <= 1 && bary.z >= 0 && bary.z <= 1 && (bary.y + bary.z) <= 1);
+	return (bary.y >= 0 && bary.y <= 1 && bary.z >= 0 && bary.z <= 1 && (bary.y + bary.z) <= 1); //Test against Constraints
 }

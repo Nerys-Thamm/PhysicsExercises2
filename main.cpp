@@ -9,6 +9,11 @@
 #include <SFML/Audio.hpp>
 #include <cstdarg>
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+// WEEK 4 EX 1: Point In Triangle Application
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Makes a Vertex array of a triangle from Points
 sf::VertexArray MakeTriangle(sf::Vector2f PointA, sf::Vector2f PointB, sf::Vector2f PointC, sf::Color Color)
 {
     // create an array of 3 vertices that define a triangle primitive
@@ -27,16 +32,7 @@ sf::VertexArray MakeTriangle(sf::Vector2f PointA, sf::Vector2f PointB, sf::Vecto
     return triangle;
 }
 
-sf::VertexArray MakePolygon(std::vector<sf::Vector2i> _vertices)
-{
-    sf::VertexArray poly(sf::TrianglesFan, _vertices.size());
-    for (int i = 0; i < _vertices.size(); i++)
-    {
-        poly[i].position = (sf::Vector2f)_vertices[i];
-    }
-    return poly;
-}
-
+//SFML loop
 void PointInTriangle()
 {
     //window
@@ -71,22 +67,23 @@ void PointInTriangle()
 
                     ClickBuffer.clear();
                 }
-                else if (ClickBuffer.size() == 1 && Triangles.size() == 1)
+                else if (ClickBuffer.size() == 1 && Triangles.size() == 1) //If there is one triangle and one click in the buffer
                 {
-                    Point = new sf::Vector2f((sf::Vector2f)ClickBuffer[0]);
-                    CVector::Vector3 vec1 = CVector::ToVector3(Triangles[0][0].position) - CVector::ToVector3(*Point);
-                    CVector::Vector3 vec2 = CVector::ToVector3(Triangles[0][1].position) - CVector::ToVector3(*Point);
-                    CVector::Vector3 vec3 = CVector::ToVector3(Triangles[0][2].position) - CVector::ToVector3(*Point);
+                    Point = new sf::Vector2f((sf::Vector2f)ClickBuffer[0]);                                            //Store the point where the click occurred
+                    CVector::Vector3 vec1 = CVector::ToVector3(Triangles[0][0].position) - CVector::ToVector3(*Point); //Vector from Click to first corner
+                    CVector::Vector3 vec2 = CVector::ToVector3(Triangles[0][1].position) - CVector::ToVector3(*Point); //Vector from Click to second corner
+                    CVector::Vector3 vec3 = CVector::ToVector3(Triangles[0][2].position) - CVector::ToVector3(*Point); //Vector from Click to third corner
+                    //Store the Sum of angles between the three vectors
                     float f = (CVector::AngleBetween(vec1, vec2) +
                                CVector::AngleBetween(vec2, vec3) +
                                CVector::AngleBetween(vec3, vec1));
-                    if ((f < 365 && f > 355) || (f > -365 && f < -355))
+                    if ((f < 365 && f > 355) || (f > -365 && f < -355)) //if they add up to ~360
                     {
-                        isInsideTriangle = true;
+                        isInsideTriangle = true; //The click occured inside the triangle
                     }
                     else
                     {
-                        isInsideTriangle = false;
+                        isInsideTriangle = false; //The click occured outside the triangle
                     }
                 }
                 else if (ClickBuffer.size() > 1 && Triangles.size() >= 1) //Clear the buffer if nothing can be done
@@ -99,7 +96,7 @@ void PointInTriangle()
 
                 switch (event.key.code)
                 {
-                case sf::Keyboard::R:
+                case sf::Keyboard::R: //Reset the scene
                     Triangles.clear();
                     Point = nullptr;
                     ClickBuffer.clear();
@@ -150,6 +147,9 @@ void PointInTriangle()
     return;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+// WEEK 4 EX 2: Barycentric Coordinate Calculator
+////////////////////////////////////////////////////////////////////////////////////////////////
 void PointInTriangleBarycentric()
 {
     //window
@@ -188,7 +188,7 @@ void PointInTriangleBarycentric()
                 {
                     Point = new sf::Vector2f((sf::Vector2f)ClickBuffer[0]);
 
-                    isInsideTriangle = CVector::TestPointInTriBarycentric(CVector::ToVector3(*Point), CVector::ToVector3(Triangles[0][0].position), CVector::ToVector3(Triangles[0][1].position), CVector::ToVector3(Triangles[0][2].position));
+                    isInsideTriangle = CVector::TestPointInTriBarycentric(CVector::ToVector3(*Point), CVector::ToVector3(Triangles[0][0].position), CVector::ToVector3(Triangles[0][1].position), CVector::ToVector3(Triangles[0][2].position)); //Use Barycentric coordinates to test if it is inside the triangle
                 }
                 else if (ClickBuffer.size() > 1 && Triangles.size() >= 1) //Clear the buffer if nothing can be done
                 {
@@ -200,7 +200,7 @@ void PointInTriangleBarycentric()
 
                 switch (event.key.code)
                 {
-                case sf::Keyboard::R:
+                case sf::Keyboard::R: //Reset the scene
                     Triangles.clear();
                     Point = nullptr;
                     ClickBuffer.clear();
@@ -251,58 +251,79 @@ void PointInTriangleBarycentric()
     return;
 }
 
+///////////////////////////////////////////////////////////////
+// WEEK 4 EX 3: Seperating Axis Theorem
+///////////////////////////////////////////////////////////////
+
+//Gets all axes adjacent to polygon edges
 std::vector<CVector::Vector3> GetAxes(sf::VertexArray _vertices)
 {
     std::vector<CVector::Vector3> out;
-    for (int i = 0; i < _vertices.getVertexCount(); i++)
+    for (int i = 0; i < _vertices.getVertexCount(); i++) //Get edges from vertex array
     {
         out.push_back(CVector::ToVector3(_vertices[i].position - _vertices[i + 1 == _vertices.getVertexCount() ? 0 : i + 1].position));
     }
 
-    for (auto edge : out)
+    for (auto edge : out) //Get adjacent vector to edges
     {
         edge = CVector::Vector3{edge.y, -edge.x, 0.0f};
     }
     return out;
 }
 
-typedef std::tuple<float, float> Projection;
+//Returns a VertexArray containing a polygon
+sf::VertexArray MakePolygon(std::vector<sf::Vector2i> _vertices)
+{
+    sf::VertexArray poly(sf::TrianglesFan, _vertices.size());
+    for (int i = 0; i < _vertices.size(); i++)
+    {
+        poly[i].position = (sf::Vector2f)_vertices[i];
+    }
+    return poly;
+}
 
+typedef std::tuple<float, float> Projection; //Stores the Min and Max projection value
+
+//Returns a projection of the polygon onto the provided plane
 Projection ProjectOnAxis(const sf::VertexArray &_vertices, const CVector::Vector3 &_axis)
 {
     float min = std::numeric_limits<float>::infinity();
     float max = -std::numeric_limits<float>::infinity();
-    for (int i = 0; i < _vertices.getVertexCount(); i++)
+    for (int i = 0; i < _vertices.getVertexCount(); i++) //For every vertex
     {
-        float proj = CVector::Dot(CVector::ToVector3(_vertices[i].position), _axis);
-        if (proj < min)
-            min = proj;
-        if (proj > max)
-            max = proj;
+        float proj = CVector::Dot(CVector::ToVector3(_vertices[i].position), _axis); //Get the dot product of the vertex and axis
+        if (proj < min)                                                              //If lower than current min
+            min = proj;                                                              //Set as min
+        if (proj > max)                                                              //If higher than current max
+            max = proj;                                                              //Set as max
     }
-    return Projection(min, max);
+    return Projection(min, max); //Return min and max values
 }
 
+//Checks if two convex polygons overlap
 bool IsOverlapping(sf::VertexArray _a, sf::VertexArray _b)
 {
-    std::vector<CVector::Vector3> axesA = GetAxes(_a);
+    std::vector<CVector::Vector3> axesA = GetAxes(_a); //Get the Axes for each shape
     std::vector<CVector::Vector3> axesB = GetAxes(_b);
+    //Define a Lambda to compare overlap between projections
     auto overlap = [](Projection a, Projection b) -> bool
     { return std::get<0>(a) <= std::get<1>(b) && std::get<1>(a) >= std::get<0>(b); };
 
+    //For each shape, project both shapes onto every axis, and check if they overlap
     for (auto axis : axesA)
     {
         if (!overlap(ProjectOnAxis(_a, axis), ProjectOnAxis(_b, axis)))
-            return false;
+            return false; //If there is no overlap, the shapes do not intersect
     }
     for (auto axis : axesB)
     {
         if (!overlap(ProjectOnAxis(_a, axis), ProjectOnAxis(_b, axis)))
-            return false;
+            return false; //If there is no overlap, the shapes do not intersect
     }
-    return true;
+    return true; //If every test results in overlap, then the shapes must intersect
 }
 
+//SFML loop
 void SeperatingAxisTheorem()
 {
     //window
@@ -330,23 +351,23 @@ void SeperatingAxisTheorem()
             {
             case sf::Event::MouseButtonPressed:
                 ClickBuffer.push_back(sf::Mouse::getPosition(window)); //Add clicks to buffer
-                if (Polygons.size() >= 2)
+                if (Polygons.size() >= 2)                              //If two polygons have been made nothing further can be done
                     ClickBuffer.clear();
                 break;
             case sf::Event::KeyPressed:
 
                 switch (event.key.code)
                 {
-                case sf::Keyboard::R:
+                case sf::Keyboard::R: //Reset the Scene
                     Polygons.clear();
                     overlap = false;
                     ClickBuffer.clear();
                     break;
-                case sf::Keyboard::P:
-                    if (ClickBuffer.size() > 2)
+                case sf::Keyboard::P:           //Place a polygon
+                    if (ClickBuffer.size() > 2) //At least three vertices are needed to make a polygon
                     {
                         Polygons.push_back(MakePolygon(ClickBuffer));
-                        if (Polygons.size() == 2)
+                        if (Polygons.size() == 2) //If there are two polygons, check if they overlap
                         {
                             overlap = IsOverlapping(Polygons[0], Polygons[1]);
                         }
@@ -366,11 +387,11 @@ void SeperatingAxisTheorem()
         sf::Color colorlist[] = {sf::Color::Blue,
                                  sf::Color::Green};
 
-        for (int i = 0; i < Polygons.size(); i++)
+        for (int i = 0; i < Polygons.size(); i++) //Draw the polygons
         {
             for (int j = 0; j < Polygons[i].getVertexCount(); j++)
             {
-                Polygons[i][j].color = (overlap ? sf::Color::Red : colorlist[i]);
+                Polygons[i][j].color = (overlap ? sf::Color::Red : colorlist[i]); //Make the polygons red if they overlap
             }
 
             window.draw(Polygons[i]);
@@ -381,22 +402,7 @@ void SeperatingAxisTheorem()
             line[i].position = (sf::Vector2f)ClickBuffer[i];
         }
         line[ClickBuffer.size()].position = (sf::Vector2f)sf::Mouse::getPosition(window);
-        window.draw(line, ClickBuffer.size(), sf::LineStrip);
-
-        // if (ClickBuffer.size() == 1 && Polygons.size() == 0)
-        // {
-        //     line[0].position = (sf::Vector2f)ClickBuffer[0];
-        //     line[1].position = (sf::Vector2f)sf::Mouse::getPosition(window);
-        //     line[2].position = (sf::Vector2f)sf::Mouse::getPosition(window);
-        //     window.draw(line, 2, sf::Lines);
-        // }
-        // else if (ClickBuffer.size() >= 2)
-        // {
-        //     line[0].position = (sf::Vector2f)ClickBuffer[0];
-        //     line[1].position = (sf::Vector2f)ClickBuffer[1];
-        //     line[2].position = (sf::Vector2f)sf::Mouse::getPosition(window);
-        //     window.draw(line, 3, sf::LineStrip);
-        // }
+        window.draw(line, ClickBuffer.size() + 1, sf::LineStrip);
 
         window.display();
     }
@@ -404,16 +410,19 @@ void SeperatingAxisTheorem()
     return;
 }
 
+///////////////////////////////////////////////////////////////
+// WEEK 5 EX 2: Where is the Javelin?
+///////////////////////////////////////////////////////////////
 void Javelin(float _angle, float _speed, float _time, CVector::Vector3 &out_Pos, float &out_Angle)
 {
-    const float GRAVITY = 9.80665f;
+    const float GRAVITY = 9.80665f; //Gravity constant
     out_Pos = CVector::Vector3{0.0f, 0.0f, 0.0f};
-    CVector::Vector3 startvelocity{_speed * cos(_angle * (M_PI / 180)), _speed * sin(_angle * (M_PI / 180)), 0.0f};
-    out_Pos.x = startvelocity.x * _time;
-    out_Pos.y = (startvelocity.y * _time) - (GRAVITY * (_time * _time) / 2);
+    CVector::Vector3 startvelocity{_speed * cos(_angle * (M_PI / 180.0f)), _speed * sin(_angle * (M_PI / 180.0f)), 0.0f}; //Start velocity is in the direction of the throw angle with magnitude determined by throw speed
+    out_Pos.x = startvelocity.x * _time;                                                                                  // Distance = Velocity * Time
+    out_Pos.y = (startvelocity.y * _time) - (GRAVITY * (_time * _time) / 2);                                              //apply gravity acceleration to initial vertical velocity
     float currVelocityX = startvelocity.x;
     float currVelocityY = startvelocity.y - GRAVITY * _time;
-    out_Angle = CVector::Angle(CVector::Vector3{currVelocityX, currVelocityY, 0.0f});
+    out_Angle = CVector::Angle(CVector::Vector3{currVelocityX, currVelocityY, 0.0f}); //Angle of the Javelin is in the direction of its velocity
 }
 
 //-----------------------
@@ -432,7 +441,7 @@ int main()
 #endif
 
         std::string input;
-        std::cout << "Please input the Exercise number you would like to run\nAvailable Exercises are:\n[004.1] [004.2] [004.3] [005.2] [005.3]\nOr input [exit] to Close the program:" << std::endl;
+        std::cout << "Please input the Exercise number you would like to run\nAvailable Exercises are:\n[004.1] [004.2] [004.3] [005.2]\nOr input [exit] to Close the program:" << std::endl;
         std::cin >> input;
         std::cin.ignore();
         if (input == "exit")
